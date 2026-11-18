@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desa Malam — Survival Horror</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #070d1a; font-family: Georgia, 'Times New Roman', serif; color: #e8e0cc; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .hidden { display: none !important; }
+  /* HUD */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  .panel { background: rgba(5, 8, 16, 0.72); border: 1px solid rgba(232, 224, 204, 0.35); border-radius: 6px; padding: 8px 12px; }
+  #hudTL { position: absolute; top: 14px; left: 14px; width: 230px; }
+  #hpBar { height: 14px; background: #331111; border: 1px solid #888; border-radius: 3px; overflow: hidden; }
+  #hpFill { height: 100%; width: 100%; background: #4caf50; }
+  #hpText { font-size: 13px; margin-top: 3px; }
+  #herbCount { font-size: 13px; margin-top: 2px; color: #9fd6a0; }
+  #hudTC { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
+  #nightLabel { font-size: 20px; letter-spacing: 3px; }
+  #dawnTimer { font-size: 14px; color: #ffd34d; }
+  #hudTR { position: absolute; top: 14px; right: 14px; text-align: right; }
+  #coinCount { font-size: 18px; color: #ffd34d; }
+  #ammoText { font-size: 22px; }
+  #lowAmmo { color: #ff5555; font-size: 13px; }
+  #muteLabel { font-size: 12px; color: #aaa; margin-top: 4px; }
+  #crosshair { position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); }
+  #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #fff; }
+  #crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
+  #crosshair::after { left: 0; top: 10px; width: 22px; height: 2px; }
+  #prompt { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); font-size: 16px; background: rgba(5,8,16,.75); padding: 6px 14px; border-radius: 5px; }
+  #toastBox { position: absolute; bottom: 130px; right: 18px; text-align: right; }
+  .toast { background: rgba(5,8,16,.8); border: 1px solid #666; padding: 5px 10px; margin-top: 5px; border-radius: 4px; font-size: 14px; }
+  #vignette { position: fixed; inset: 0; pointer-events: none; z-index: 6; opacity: 0; transition: opacity .3s; background: radial-gradient(ellipse at center, transparent 45%, rgba(180,0,0,.55) 100%); }
+  /* Screens */
+  .screen { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(3, 5, 10, 0.82); }
+  .card { max-width: 620px; width: 92%; text-align: center; background: rgba(10, 14, 26, 0.95); border: 1px solid #8a6a2a; border-radius: 10px; padding: 28px 30px; }
+  .card h1 { font-size: 44px; margin: 0 0 6px; letter-spacing: 4px; color: #ffd34d; }
+  .card h2 { font-size: 30px; margin: 0 0 10px; color: #ffd34d; }
+  .card p { font-size: 15px; line-height: 1.55; color: #ddd; }
+  .controls { text-align: left; font-size: 14px; line-height: 1.8; margin: 12px auto; display: inline-block; }
+  button { pointer-events: auto; cursor: pointer; font-family: inherit; font-size: 18px; letter-spacing: 2px; background: #8a1a1a; color: #fff; border: 1px solid #ffb45e; border-radius: 6px; padding: 12px 28px; margin: 6px; }
+  button:hover { background: #a82222; }
+  button.secondary { background: #222; font-size: 15px; padding: 9px 18px; }
+  /* Shop */
+  #shopBox { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 12; width: 420px; max-width: 92%; background: rgba(10,14,26,.97); border: 1px solid #8a6a2a; border-radius: 10px; padding: 18px; pointer-events: auto; }
+  #shopBox h3 { margin: 0 0 4px; color: #ffd34d; text-align: center; }
+  #shopCoins { text-align: center; color: #ffd34d; margin-bottom: 10px; }
+  .shopRow { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; border-top: 1px solid #333; font-size: 15px; }
+  .shopRow button { font-size: 14px; padding: 7px 14px; margin: 0; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="vignette"></div>
+
+<div id="hud" class="hidden">
+  <div id="hudTL" class="panel">
+    <div id="hpBar"><div id="hpFill"></div></div>
+    <div id="hpText">100 / 100</div>
+    <div id="herbCount">Herbal: 1 (H)</div>
+  </div>
+  <div id="hudTC" class="panel">
+    <div id="nightLabel">MALAM 1 / 7</div>
+    <div id="dawnTimer">Fajar 1:30</div>
+  </div>
+  <div id="hudTR" class="panel">
+    <div id="coinCount">🪙 0</div>
+    <div id="ammoText">12 / 48</div>
+    <div id="lowAmmo" class="hidden">AMUNISI HABIS — tekan R!</div>
+    <div id="muteLabel">Suara: HIDUP (M)</div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="toastBox"></div>
+</div>
+
+<div id="titleScreen" class="screen">
+  <div class="card">
+    <h1>DESA MALAM</h1>
+    <p>Senja turun di Desa Wanasari. Demam hitam telah mengubah warga menjadi Yang Terjangkit — mereka berjalan dalam gelap, mencari yang masih hidup. Jalan keluar tertutup sampai fajar hari ketujuh. Bertahanlah tujuh malam.</p>
+    <div class="controls">
+      WASD — bergerak &nbsp;·&nbsp; Mouse — membidik (klik untuk mengunci)<br>
+      Klik kiri — tembak &nbsp;·&nbsp; R — isi ulang &nbsp;·&nbsp; H — pakai herbal<br>
+      Shift — lari &nbsp;·&nbsp; E — ambil / berdagang &nbsp;·&nbsp; P — jeda &nbsp;·&nbsp; M — suara
+    </div>
+    <p>Amunisi langka. Kumpulkan koin dari Yang Terjangkit, beli amunisi dan herbal dari Pak Wiro di antara malam.</p>
+    <button id="btnStart">MULAI</button>
+  </div>
+</div>
+
+<div id="pauseScreen" class="screen hidden">
+  <div class="card">
+    <h2>JEDA</h2>
+    <p>Malam menunggu. Napas dulu sebentar.</p>
+    <button id="btnResume">LANJUT</button>
+    <button id="btnRestartPause" class="secondary">MULAI DARI AWAL</button>
+  </div>
+</div>
+
+<div id="interScreen" class="screen hidden">
+  <div class="card">
+    <h2>FAJAR SEBENTAR LAGI — ISTIRAHAT</h2>
+    <p id="interStats"></p>
+    <p>Pak Wiro ada di alun-alun dengan gerobak lenteranya. Dekati dia dan tekan E untuk berdagang.</p>
+    <p id="interCountdown"></p>
+    <button id="btnNextNight">Mulai Malam Berikutnya</button>
+  </div>
+</div>
+
+<div id="winScreen" class="screen hidden">
+  <div class="card">
+    <h2>FAJAR TIBA — KAMU SELAMAT</h2>
+    <p>Matahari terbit di hari ketujuh. Kabut hitam surut, jalan keluar terbuka, dan Desa Wanasari akhirnya diam. Bara berjalan pergi — hidup.</p>
+    <p id="winStats"></p>
+    <button id="btnRestartWin">MAIN LAGI</button>
+  </div>
+</div>
+
+<div id="deadScreen" class="screen hidden">
+  <div class="card">
+    <h2>KAMU TUMBANG</h2>
+    <p>Demam hitam menemukanmu di kegelapan. Desa Wanasari menyimpan satu lagi nama.</p>
+    <p id="deadStats"></p>
+    <button id="btnRestartDead">COBA LAGI</button>
+  </div>
+</div>
+
+<div id="shopBox" class="hidden">
+  <h3>Warung Pak Wiro</h3>
+  <div id="shopCoins">Koinmu: 0</div>
+  <div class="shopRow"><span>Kotak Amunisi (+24 peluru)</span><span><span id="shopAmmoPrice">30 koin</span> <button id="btnBuyAmmo">BELI</button></span></div>
+  <div class="shopRow"><span>Herbal (+1)</span><span><span id="shopHerbPrice">25 koin</span> <button id="btnBuyHerb">BELI</button></span></div>
+  <div class="shopRow"><span>Darah Maks +25</span><span><span id="shopMaxHpPrice">60 koin</span> <button id="btnBuyMaxHp">BELI</button></span></div>
+  <div style="text-align:center; margin-top:12px;"><button id="btnCloseShop" class="secondary">TUTUP</button></div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
